@@ -22,10 +22,10 @@ class jira (
 	$database_user = "jira",
 	$database_pass = "jira",
 	$number = 2,
-	$version = "5.1.1",
+	$version = "5.1.4",
 	$jira_jars_version = "5.1",
 	$contextroot = "jira",
-	$webapp_base = "/srv"
+	$webapp_base = "/srv",
 ){
 	
 # configuration
@@ -112,13 +112,28 @@ class jira (
 	file { "jira.properties":
 		path => "${build_dir}/edit-webapp/WEB-INF/classes/jira-application.properties",
 		content => template("jira/jira-application.properties.erb"),
+		ensure => present,
 		require => Exec["extract-jira"],
+		notify => Exec["clean-jira"],
+
 	}
 	
 	file { "dbconfig.xml" :
 		path => "${jira_home}/dbconfig.xml",
+		ensure => present,
 		content => template("jira/dbconfig.xml.erb"),
 		require => Exec["extract-jira"],
+		notify => Exec["clean-jira"],
+		owner => root,
+		group => $user,
+		mode => 640,
+	}
+	
+# clean any customisations
+	exec { "clean-jira-edit-webapp":
+		command => "/bin/rm -rf ${build_dir}/edit-webapp/WEB-INF/classes/* ${build_dir}/edit-webapp/WEB-INF/lib",
+		refreshonly => true,
+		notify => Exec["build-jira"],
 	}
 	
 # clean the previous JIRA libraries
@@ -146,6 +161,7 @@ class jira (
 
 	
 # build the JIRA war-file	
+# don't ever call nofify this, as you always need to have cleaned before hand.
 	exec { "build-jira":
 		command => "/bin/sh build.sh && /bin/cp ${build_dir}/dist-tomcat/tomcat-6/${jira_build}.war ${webapp_base}/${user}/tomcat/webapps/${webapp_war}",
 		user => $user,
@@ -198,7 +214,7 @@ class jira (
 		username => $user, 
 		number => $number,
 		webapp_base => $webapp_base,
-		java_opts => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true -Dmail.mime.decodeparameters=true -Xms128m -Xmx512m -XX:MaxPermSize=256m -Djava.awt.headless=true",
+		java_opts => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true -Dmail.mime.decodeparameters=true -Xms128m -Xmx384m -XX:MaxPermSize=256m -Djava.awt.headless=true",
 		server_host_config => template("jira/context.erb"),
 		service_require => [
 			Exec['build-jira'],
