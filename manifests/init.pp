@@ -113,7 +113,10 @@ class jira (
 		path => "${build_dir}/edit-webapp/WEB-INF/classes/jira-application.properties",
 		content => template("jira/jira-application.properties.erb"),
 		ensure => present,
-		require => Exec["extract-jira"],
+		require => [
+			Exec["extract-jira"],
+			Exec["clean-jira-edit-webapp"],
+		],
 		notify => Exec["clean-jira"],
 
 	}
